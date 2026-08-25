@@ -1,0 +1,22 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Etatherm Modbus",
+        "description": "Connect to an Etatherm controller over Modbus TCP.",
+        "data": {
+          "host": "Host",
+          "port": "Port",
+          "modbus_addr": "Modbus unit ID"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Failed to connect",
+      "unknown": "Unexpected error"
+    },
+    "abort": {
+      "already_configured": "This Etatherm controller is already configured"
+    }
+  }
+}

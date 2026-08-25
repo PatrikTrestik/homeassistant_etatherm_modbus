@@ -1,0 +1,15 @@
+{
+  "codeowners": [
+    "@PatrikTrestik"
+  ],
+  "config_flow": true,
+  "dependencies": [],
+  "documentation": "https://github.com/PatrikTrestik/homeassistant_etatherm_modbus",
+  "domain": "etatherm_modbus",
+  "iot_class": "local_polling",
+  "name": "Etatherm Modbus",
+  "requirements": [
+    "pymodbus>=3.6.8"
+  ],
+  "version": "1.1.0"
+}

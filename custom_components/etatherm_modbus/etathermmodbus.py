@@ -1,14 +1,11 @@
 """Etatherm lib using Modbus."""
 
-from array import array
 import asyncio
 from datetime import datetime, timedelta
 import logging
 from math import floor
 
 from pymodbus.client import AsyncModbusTcpClient
-from pymodbus.payload import BinaryPayloadBuilder, BinaryPayloadDecoder
-from pymodbus.transaction import ModbusRtuFramer
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -56,7 +53,7 @@ class EtathermModbus:
             data = bytes([data[0] & 0xDF]) + b"\x10\x80\x10\x80"
         else:
             data = bytes([data[0] | 0x20]) + data[1:5]
-            response = await self.async_write_register(self._address, addr, data)
+        response = await self.async_write_register(self._address, addr, data)
 
         if response.isError():
             return False
@@ -126,6 +123,19 @@ class EtathermModbus:
                     "flag": flag,
                 }
         return res
+
+    async def async_test_connection(self) -> bool:
+        """Return True if Modbus TCP responds to a holding-register read."""
+        try:
+            response = await self.async_read_holding_registers(self._address, 0x60, 16)
+            return response is not None and not response.isError()
+        except Exception:
+            _LOGGER.debug("Connection test failed", exc_info=True)
+            return False
+
+    async def async_close(self) -> None:
+        """Disconnect client."""
+        await self.__async_close()
 
     def __get_toy(self, time_in: datetime) -> int:
         return (
