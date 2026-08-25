@@ -13,8 +13,8 @@ from homeassistant.data_entry_flow import FlowResult
 from homeassistant.exceptions import HomeAssistantError
 
 from .const import (
+    CONF_LEGACY_ENTITY_IDS,
     CONF_MODBUS_ADDR,
-    CONF_UNIQUE_BASE,
     DEFAULT_MODBUS_ADDR,
     DEFAULT_PORT,
     DOMAIN,
@@ -28,7 +28,7 @@ STEP_USER_DATA_SCHEMA = vol.Schema(
         vol.Required(CONF_HOST): str,
         vol.Required(CONF_PORT, default=DEFAULT_PORT): int,
         vol.Required(CONF_MODBUS_ADDR, default=DEFAULT_MODBUS_ADDR): int,
-        vol.Optional(CONF_UNIQUE_BASE, default=""): str,
+        vol.Required(CONF_LEGACY_ENTITY_IDS, default=False): bool,
     }
 )
 
@@ -68,14 +68,14 @@ class EtathermModbusConfigFlow(ConfigFlow, domain=DOMAIN):
                 _LOGGER.exception("Unexpected exception")
                 errors["base"] = "unknown"
             else:
-                unique_base = (user_input.get(CONF_UNIQUE_BASE) or "").strip()
                 data = {
                     CONF_HOST: user_input[CONF_HOST],
                     CONF_PORT: user_input[CONF_PORT],
                     CONF_MODBUS_ADDR: user_input[CONF_MODBUS_ADDR],
+                    CONF_LEGACY_ENTITY_IDS: bool(
+                        user_input.get(CONF_LEGACY_ENTITY_IDS)
+                    ),
                 }
-                if unique_base:
-                    data[CONF_UNIQUE_BASE] = unique_base
                 return self.async_create_entry(
                     title=f"Etatherm {user_input[CONF_HOST]}",
                     data=data,

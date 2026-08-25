@@ -8,10 +8,10 @@
           "host": "Host",
           "port": "Port",
           "modbus_addr": "Modbus unit ID",
-          "unique_base": "Entity unique ID"
+          "legacy_entity_ids": "Keep legacy entity IDs"
         },
         "data_description": {
-          "unique_base": "If set, used as the climate unique ID instead of `{host}_{unit}`. Use the same value as the legacy YAML integration to keep existing entities."
+          "legacy_entity_ids": "Reuse climate entities from the YAML Etatherm integration (`climate.honza`, …). Use the same host as in YAML, and remove the old `climate:` block before adding this integration."
         }
       }
     },

@@ -15,12 +15,16 @@ from homeassistant.components.climate.const import (
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import ATTR_TEMPERATURE, CONF_HOST, UnitOfTemperature
 from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from . import EtathermCoordinator
-from .const import CONF_UNIQUE_BASE, DOMAIN, HVACPreset_AUTO
+from .const import CONF_LEGACY_ENTITY_IDS, DOMAIN, HVACPreset_AUTO
+
+# YAML domain of the proprietary Etatherm integration (etatherm_ha).
+_LEGACY_YAML_DOMAIN = "etatherm"
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -37,11 +41,45 @@ async def async_setup_entry(
         _LOGGER.warning("No used heating positions found on %s", entry.data[CONF_HOST])
         return
 
+    if entry.data.get(CONF_LEGACY_ENTITY_IDS):
+        _adopt_legacy_entities(hass, entry, params)
+
     thermostats = [
         EtathermThermostat(coordinator, entry, idx, name)
         for idx, name in params.items()
     ]
     async_add_entities(thermostats)
+
+
+def _adopt_legacy_entities(
+    hass: HomeAssistant, entry: ConfigEntry, params: dict[int, Any]
+) -> None:
+    """Move YAML Etatherm climate entities onto this config entry.
+
+    Legacy unique IDs were ``{host}-{position}`` on platform ``etatherm``.
+    """
+    registry = er.async_get(hass)
+    host = entry.data[CONF_HOST]
+    for idx in params:
+        legacy_uid = f"{host}-{idx}"
+        old_entity_id = registry.async_get_entity_id(
+            "climate", _LEGACY_YAML_DOMAIN, legacy_uid
+        )
+        if not old_entity_id:
+            continue
+        try:
+            registry.async_update_entity_platform(
+                old_entity_id,
+                DOMAIN,
+                new_config_entry_id=entry.entry_id,
+                new_unique_id=legacy_uid,
+            )
+        except ValueError:
+            _LOGGER.warning(
+                "Could not adopt legacy entity %s; disable the old Etatherm "
+                "YAML integration and try again",
+                old_entity_id,
+            )
 
 
 class EtathermThermostat(CoordinatorEntity, ClimateEntity):
@@ -62,8 +100,11 @@ class EtathermThermostat(CoordinatorEntity, ClimateEntity):
         super().__init__(coordinator, context=idx)
         self._id = idx
         unique_id = entry.unique_id or entry.entry_id
-        unique_base = entry.data.get(CONF_UNIQUE_BASE)
-        self._attr_unique_id = unique_base or f"{unique_id}-{idx}"
+        host = entry.data[CONF_HOST]
+        if entry.data.get(CONF_LEGACY_ENTITY_IDS):
+            self._attr_unique_id = f"{host}-{idx}"
+        else:
+            self._attr_unique_id = f"{unique_id}-{idx}"
         self._name = params["name"]
         self._attr_name = params["name"]
         self._current_temperature = None

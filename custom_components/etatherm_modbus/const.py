@@ -10,7 +10,7 @@ HVACPreset_AUTO = "auto"
 HVACPreset_KEEP = "keep"
 
 CONF_MODBUS_ADDR = "modbus_addr"
-CONF_UNIQUE_BASE = "unique_base"
+CONF_LEGACY_ENTITY_IDS = "legacy_entity_ids"
 DEFAULT_PORT = 50001
 DEFAULT_MODBUS_ADDR = 0
 CONF_MODBUS_RETR = 10
