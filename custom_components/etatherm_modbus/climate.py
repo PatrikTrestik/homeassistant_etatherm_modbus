@@ -19,13 +19,12 @@ from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
+from homeassistant.util import slugify
 
 from . import EtathermCoordinator
 from .const import CONF_LEGACY_ENTITY_IDS, DOMAIN, HVACPreset_AUTO
 
 # YAML domain of the proprietary Etatherm integration (etatherm_ha).
-_LEGACY_YAML_DOMAIN = "etatherm"
-
 _LOGGER = logging.getLogger(__name__)
 
 
@@ -41,8 +40,15 @@ async def async_setup_entry(
         _LOGGER.warning("No used heating positions found on %s", entry.data[CONF_HOST])
         return
 
-    if entry.data.get(CONF_LEGACY_ENTITY_IDS):
-        _adopt_legacy_entities(hass, entry, params)
+    keep_legacy = bool(entry.data.get(CONF_LEGACY_ENTITY_IDS))
+    _LOGGER.debug(
+        "Setting up climate for %s keep_legacy=%s positions=%s",
+        entry.data[CONF_HOST],
+        keep_legacy,
+        list(params),
+    )
+    if keep_legacy:
+        _park_legacy_entity_ids(hass, entry, params)
 
     thermostats = [
         EtathermThermostat(coordinator, entry, idx, name)
@@ -51,34 +57,40 @@ async def async_setup_entry(
     async_add_entities(thermostats)
 
 
-def _adopt_legacy_entities(
-    hass: HomeAssistant, entry: ConfigEntry, params: dict[int, Any]
-) -> None:
-    """Move YAML Etatherm climate entities onto this config entry.
+def _unused_entity_id(registry: er.EntityRegistry, base_entity_id: str) -> str:
+    """Return base_entity_id, or base_entity_id_2, ... if already taken."""
+    if registry.async_get(base_entity_id) is None:
+        return base_entity_id
+    index = 2
+    while registry.async_get(f"{base_entity_id}_{index}") is not None:
+        index += 1
+    return f"{base_entity_id}_{index}"
 
-    Legacy unique IDs were ``{host}-{position}`` on platform ``etatherm``.
-    """
+
+def _park_legacy_entity_ids(
+    hass: HomeAssistant,
+    entry: ConfigEntry,
+    params: dict[int, Any],
+) -> None:
+    """Rename occupants of climate.{slug} to climate.{slug}_old. Do not adopt them."""
     registry = er.async_get(hass)
-    host = entry.data[CONF_HOST]
-    for idx in params:
-        legacy_uid = f"{host}-{idx}"
-        old_entity_id = registry.async_get_entity_id(
-            "climate", _LEGACY_YAML_DOMAIN, legacy_uid
-        )
-        if not old_entity_id:
+    new_uid_prefix = entry.unique_id or entry.entry_id
+    for idx, position in params.items():
+        slug = slugify(position["name"])
+        desired_entity_id = f"climate.{slug}"
+        new_uid = f"{new_uid_prefix}-{idx}"
+        occupant = registry.async_get(desired_entity_id)
+        if occupant is None:
             continue
+        if occupant.platform == DOMAIN and occupant.unique_id == new_uid:
+            continue
+        parked_id = _unused_entity_id(registry, f"{desired_entity_id}_old")
+        _LOGGER.debug("Renaming legacy %s -> %s", desired_entity_id, parked_id)
         try:
-            registry.async_update_entity_platform(
-                old_entity_id,
-                DOMAIN,
-                new_config_entry_id=entry.entry_id,
-                new_unique_id=legacy_uid,
-            )
-        except ValueError:
-            _LOGGER.warning(
-                "Could not adopt legacy entity %s; disable the old Etatherm "
-                "YAML integration and try again",
-                old_entity_id,
+            registry.async_update_entity(desired_entity_id, new_entity_id=parked_id)
+        except ValueError as err:
+            _LOGGER.debug(
+                "Could not rename %s -> %s: %s", desired_entity_id, parked_id, err
             )
 
 
@@ -88,6 +100,7 @@ class EtathermThermostat(CoordinatorEntity, ClimateEntity):
     _attr_hvac_modes = [HVACMode.HEAT, HVACMode.AUTO]
     _attr_supported_features = ClimateEntityFeature.TARGET_TEMPERATURE
     _attr_temperature_unit = UnitOfTemperature.CELSIUS
+    _attr_has_entity_name = False
 
     def __init__(
         self,
@@ -100,11 +113,17 @@ class EtathermThermostat(CoordinatorEntity, ClimateEntity):
         super().__init__(coordinator, context=idx)
         self._id = idx
         unique_id = entry.unique_id or entry.entry_id
-        host = entry.data[CONF_HOST]
+        slug = slugify(params["name"])
+        self._attr_unique_id = f"{unique_id}-{idx}"
+        self._attr_suggested_object_id = slug
         if entry.data.get(CONF_LEGACY_ENTITY_IDS):
-            self._attr_unique_id = f"{host}-{idx}"
-        else:
-            self._attr_unique_id = f"{unique_id}-{idx}"
+            self.entity_id = f"climate.{slug}"
+        _LOGGER.debug(
+            "Climate %s unique_id=%s entity_id=%s",
+            params["name"],
+            self._attr_unique_id,
+            getattr(self, "entity_id", None),
+        )
         self._name = params["name"]
         self._attr_name = params["name"]
         self._current_temperature = None

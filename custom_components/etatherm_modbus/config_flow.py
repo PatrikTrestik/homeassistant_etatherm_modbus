@@ -7,8 +7,9 @@ from typing import Any
 
 import voluptuous as vol
 
-from homeassistant.config_entries import ConfigFlow
+from homeassistant.config_entries import ConfigEntry, ConfigFlow, OptionsFlow
 from homeassistant.const import CONF_HOST, CONF_PORT
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.data_entry_flow import FlowResult
 from homeassistant.exceptions import HomeAssistantError
 
@@ -50,6 +51,12 @@ class EtathermModbusConfigFlow(ConfigFlow, domain=DOMAIN):
 
     VERSION = 1
 
+    @staticmethod
+    @callback
+    def async_get_options_flow(config_entry: ConfigEntry) -> OptionsFlow:
+        """Return the options flow."""
+        return EtathermModbusOptionsFlow()
+
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
@@ -63,6 +70,12 @@ class EtathermModbusConfigFlow(ConfigFlow, domain=DOMAIN):
             try:
                 await _validate_input(user_input)
             except CannotConnect:
+                _LOGGER.warning(
+                    "Cannot connect to Etatherm at %s:%s unit %s",
+                    user_input[CONF_HOST],
+                    user_input[CONF_PORT],
+                    user_input[CONF_MODBUS_ADDR],
+                )
                 errors["base"] = "cannot_connect"
             except Exception:
                 _LOGGER.exception("Unexpected exception")
@@ -85,6 +98,36 @@ class EtathermModbusConfigFlow(ConfigFlow, domain=DOMAIN):
             step_id="user",
             data_schema=STEP_USER_DATA_SCHEMA,
             errors=errors,
+        )
+
+
+class EtathermModbusOptionsFlow(OptionsFlow):
+    """Handle Etatherm Modbus options."""
+
+    async def async_step_init(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Manage legacy entity ID option for an existing entry."""
+        if user_input is not None:
+            self.hass.config_entries.async_update_entry(
+                self.config_entry,
+                data={**self.config_entry.data, **user_input},
+            )
+            await self.hass.config_entries.async_reload(self.config_entry.entry_id)
+            return self.async_create_entry(title="", data={})
+
+        return self.async_show_form(
+            step_id="init",
+            data_schema=vol.Schema(
+                {
+                    vol.Required(
+                        CONF_LEGACY_ENTITY_IDS,
+                        default=bool(
+                            self.config_entry.data.get(CONF_LEGACY_ENTITY_IDS)
+                        ),
+                    ): bool,
+                }
+            ),
         )
 
 

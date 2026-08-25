@@ -1,5 +1,7 @@
 """Etatherm lib using Modbus."""
 
+from __future__ import annotations
+
 import asyncio
 from datetime import datetime, timedelta
 import logging
@@ -22,6 +24,8 @@ class EtathermModbus:
         address,
     ):
         """Init method."""
+        self._host = host
+        self._port = port
         self._client = AsyncModbusTcpClient(
             host=host, port=port, timeout=CONF_MODBUS_TIMEOUT
         )
@@ -131,9 +135,25 @@ class EtathermModbus:
         """Return True if Modbus TCP responds to a holding-register read."""
         try:
             response = await self.async_read_holding_registers(self._address, 0x60, 16)
-            return response is not None and not response.isError()
-        except Exception:
-            _LOGGER.debug("Connection test failed", exc_info=True)
+            if response is not None and not response.isError():
+                return True
+            _LOGGER.warning(
+                "Etatherm at %s:%s unit %s replied with an error: %s",
+                self._host,
+                self._port,
+                self._address,
+                response,
+            )
+            return False
+        except Exception as err:
+            _LOGGER.warning(
+                "Connection test to %s:%s unit %s failed: %s",
+                self._host,
+                self._port,
+                self._address,
+                err,
+                exc_info=True,
+            )
             return False
 
     async def async_close(self) -> None:
@@ -197,56 +217,56 @@ class EtathermModbus:
         return self._client.connected
 
     async def __async_connect(self):
-        result = False
-
-        _LOGGER.debug(
-            "Trying to connect to Etatherm at %s:%s",
-            self._client.comm_params.host,
-            self._client.comm_params.port,
-        )
-
-        result = await self._client.connect()
-
-        if result:
-            _LOGGER.info(
-                "Etatherm connected at %s:%s",
-                self._client.comm_params.host,
-                self._client.comm_params.port,
-            )
-        else:
+        _LOGGER.debug("Trying to connect to Etatherm at %s:%s", self._host, self._port)
+        try:
+            await self._client.connect()
+        except Exception:
             _LOGGER.warning(
                 "Unable to connect to Etatherm at %s:%s",
-                self._client.comm_params.host,
-                self._client.comm_params.port,
+                self._host,
+                self._port,
+                exc_info=True,
             )
-        return result
+            return False
+
+        if self._client.connected:
+            _LOGGER.info("Etatherm connected at %s:%s", self._host, self._port)
+            return True
+
+        _LOGGER.warning("Unable to connect to Etatherm at %s:%s", self._host, self._port)
+        return False
 
     async def async_read_holding_registers(self, unit, address, count):
         """Read holding registers."""
-        kwargs = {"slave": unit} if unit else {}
         async with self._lock:
-            await self.__check_connection()
+            if not await self.__check_connection():
+                raise ConnectionError(
+                    f"Not connected to Etatherm at {self._host}:{self._port}"
+                )
+            regs_l = None
             for _ in range(0, CONF_MODBUS_RETR):
                 regs_l = await self._client.read_holding_registers(
-                    address, count=count, **kwargs
+                    address, count=count, device_id=unit
                 )
                 if regs_l.isError():
                     await asyncio.sleep(CONF_MODBUS_RETR_WAIT)
-                else:
-                    break
+                    continue
+                return regs_l
             return regs_l
 
     async def async_write_register(self, unit, address, payload: bytes):
-        kwargs = {"slave": unit} if unit else {}
-
         async with self._lock:
-            await self.__check_connection()
+            if not await self.__check_connection():
+                raise ConnectionError(
+                    f"Not connected to Etatherm at {self._host}:{self._port}"
+                )
+            regs_l = None
             for _ in range(0, CONF_MODBUS_RETR):
                 regs_l = await self._client.write_registers(
-                    address, list(payload), **kwargs
+                    address, list(payload), device_id=unit
                 )
                 if regs_l.isError():
                     await asyncio.sleep(CONF_MODBUS_RETR_WAIT)
-                else:
-                    break
+                    continue
+                return regs_l
             return regs_l

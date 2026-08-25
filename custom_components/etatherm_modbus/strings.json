@@ -22,5 +22,18 @@
     "abort": {
       "already_configured": "This Etatherm controller is already configured"
     }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Etatherm Modbus",
+        "data": {
+          "legacy_entity_ids": "Keep legacy entity IDs"
+        },
+        "data_description": {
+          "legacy_entity_ids": "Use YAML-style unique IDs (host-position) so existing automations keep working."
+        }
+      }
+    }
   }
 }
