@@ -7,7 +7,11 @@
         "data": {
           "host": "Host",
           "port": "Port",
-          "modbus_addr": "Modbus unit ID"
+          "modbus_addr": "Modbus unit ID",
+          "unique_base": "Entity unique ID"
+        },
+        "data_description": {
+          "unique_base": "If set, used as the climate unique ID instead of `{host}_{unit}`. Use the same value as the legacy YAML integration to keep existing entities."
         }
       }
     },

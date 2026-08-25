@@ -20,7 +20,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from . import EtathermCoordinator
-from .const import DOMAIN, HVACPreset_AUTO
+from .const import CONF_UNIQUE_BASE, DOMAIN, HVACPreset_AUTO
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -62,7 +62,8 @@ class EtathermThermostat(CoordinatorEntity, ClimateEntity):
         super().__init__(coordinator, context=idx)
         self._id = idx
         unique_id = entry.unique_id or entry.entry_id
-        self._attr_unique_id = f"{unique_id}-{idx}"
+        unique_base = entry.data.get(CONF_UNIQUE_BASE)
+        self._attr_unique_id = unique_base or f"{unique_id}-{idx}"
         self._name = params["name"]
         self._attr_name = params["name"]
         self._current_temperature = None
