@@ -11,7 +11,7 @@
           "legacy_entity_ids": "Keep legacy entity IDs"
         },
         "data_description": {
-          "legacy_entity_ids": "Reuse climate entities from the YAML Etatherm integration (`climate.honza`, …). Use the same host as in YAML, and remove the old `climate:` block before adding this integration."
+          "legacy_entity_ids": "Reuse climate entities from the YAML Etatherm integration (for example climate.livingroom). Use the same host as in YAML, and remove the old climate YAML block before adding this integration."
         }
       }
     },

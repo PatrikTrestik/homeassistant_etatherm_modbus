@@ -21,8 +21,8 @@ Add the integration from the UI:
 | Field | Description | Default |
 |-------|-------------|---------|
 | Host | IP address of the Eth1eC/D (or a serial/TCP converter that exposes Modbus TCP) | — |
-| Port | Modbus TCP port | 50001 |
-| Modbus unit ID | Modbus slave/unit address | 0 |
+| Port | Modbus TCP port | 502 |
+| Modbus unit ID | Modbus slave/unit address | 1 |
 | Keep legacy entity IDs | Reuse YAML Etatherm unique IDs (`{host}-{position}`) so existing entities such as `climate.livingroom` stay in place. Use the same host as in YAML and remove the old `climate:` block first. | off |
 
 Serial and Modbus RTU are not supported. The device speaks **Modbus TCP** only.
