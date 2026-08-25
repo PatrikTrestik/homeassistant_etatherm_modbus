@@ -1,5 +1,5 @@
 {
-    "name": "Etatherm Modbus",
+    "name": "Etatherm heating (Modbus)",
     "render_readme": false,
     "homeassistant": "2024.5.0"
 }
