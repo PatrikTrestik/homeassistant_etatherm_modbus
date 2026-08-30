@@ -14,5 +14,6 @@
   "requirements": [
     "pymodbus>=3.11.2,<4"
   ],
-  "version": "1.1.10"
+  "version": "1.1.10",
+  "issue_tracker": "https://github.com/PatrikTrestik/homeassistant_etatherm_modbus/issues"
 }
